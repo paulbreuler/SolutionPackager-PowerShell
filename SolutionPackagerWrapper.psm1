@@ -11,7 +11,7 @@
     /folder: <folder path>	Required. The path to a folder. When extracting, this folder is created and populated with component files. When packing, this folder must already exist and contain previously extracted component files.
     /packagetype: {Unmanaged|Managed|Both}	Optional. The type of package to process. The default value is Unmanaged. This argument may be omitted in most occasions because the package type can be read from inside the .zip file or component files. When extracting and Both is specified, managed and unmanaged solution .zip files must be present and are processed into a single folder. When packing and Both is specified, managed and unmanaged solution .zip files will be produced from one folder. For more information, see the section on working with managed and unmanaged solutions later in this topic.
 #>
-function Solution-Packager {
+function Invoke-SolutionPackager {
   [CmdletBinding(DefaultParameterSetName = 'Packager Settings', 
     SupportsShouldProcess = $true, 
     PositionalBinding = $false,
@@ -103,6 +103,7 @@ function Solution-Packager {
       $stdout = $process.StandardOutput.ReadToEnd()
       $stderr = $process.StandardError.ReadToEnd()
       
+      # Actually throw an error instead of passing error output to stdout
       switch ($process.ExitCode) {
         "1" {
           Write-Error "Stdout: $stdout"
@@ -122,3 +123,5 @@ function Solution-Packager {
   End {
   }
 }
+
+Export-ModuleMember -Function Invoke-SolutionPackager
