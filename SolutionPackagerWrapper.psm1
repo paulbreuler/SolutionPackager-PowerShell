@@ -5,11 +5,6 @@
    SolutionPackager is a tool that can reversibly decompose a Dynamics 365 Customer Engagement compressed solution file into multiple XML files and other files so that these files can be easily managed by a source control system. 
 .EXAMPLE
    Solution-Packager -action Extract -zipFile "C:\Users\$env:Username\Downloads\WebResources_0_0_1_3.zip" -folder C:\Users\$env:Username\Documents\Repositories\contoso-university\unpacked-solutions\WebResources -packageType Unmanaged
-.INPUTS
-    /action: {Extract|Pack}	Required. The action to perform. The action can be either to extract a solution .zip file to a folder, or to pack a folder into a .zip file.
-    /zipfile: <file path>	Required. The path and name of a solution .zip file. When extracting, the file must exist and will be read from. When packing, the file is replaced.
-    /folder: <folder path>	Required. The path to a folder. When extracting, this folder is created and populated with component files. When packing, this folder must already exist and contain previously extracted component files.
-    /packagetype: {Unmanaged|Managed|Both}	Optional. The type of package to process. The default value is Unmanaged. This argument may be omitted in most occasions because the package type can be read from inside the .zip file or component files. When extracting and Both is specified, managed and unmanaged solution .zip files must be present and are processed into a single folder. When packing and Both is specified, managed and unmanaged solution .zip files will be produced from one folder. For more information, see the section on working with managed and unmanaged solutions later in this topic.
 #>
 function Invoke-SolutionPackager {
   [CmdletBinding(DefaultParameterSetName = 'Packager Settings', 
@@ -21,7 +16,7 @@ function Invoke-SolutionPackager {
   [OutputType([String])]
   Param
   (
-    # Param1 help description
+    # {Extract|Pack} The action to perform. The action can be either to extract a solution .zip file to a folder, or to pack a folder into a .zip file.
     [Parameter(Mandatory = $true, 
       ValueFromPipeline = $true,
       ValueFromPipelineByPropertyName = $true, 
@@ -34,6 +29,7 @@ function Invoke-SolutionPackager {
     [String]
     $action,
 
+    # <file path>	The path and name of a solution .zip file. When extracting, the file must exist and will be read from. When packing, the file is replaced.
     [Parameter(Mandatory = $true, 
       ValueFromPipeline = $true,
       ValueFromPipelineByPropertyName = $true, 
@@ -45,6 +41,7 @@ function Invoke-SolutionPackager {
     [String] 
     $zipFile,
 
+    # <folder path> The path to a folder. When extracting, this folder is created and populated with component files. When packing, this folder must already exist and contain previously extracted component files.
     [Parameter(Mandatory = $true, 
       ValueFromPipeline = $true,
       ValueFromPipelineByPropertyName = $true, 
@@ -56,6 +53,7 @@ function Invoke-SolutionPackager {
     [String] 
     $folder,
 
+    # {Unmanaged|Managed|Both}	Optional. The type of package to process. The default value is Unmanaged. This argument may be omitted in most occasions because the package type can be read from inside the .zip file or component files. When extracting and Both is specified, managed and unmanaged solution .zip files must be present and are processed into a single folder. When packing and Both is specified, managed and unmanaged solution .zip files will be produced from one folder. For more information, see the section on working with managed and unmanaged solutions later in this topic.
     [Parameter(Mandatory = $false, 
       ValueFromPipeline = $true,
       ValueFromPipelineByPropertyName = $true, 
@@ -124,4 +122,55 @@ function Invoke-SolutionPackager {
   }
 }
 
+
+<#
+.Synopsis
+   Install core tools for use by module
+.DESCRIPTION
+   Long description
+.EXAMPLE
+   Example of how to use this cmdlet
+.EXAMPLE
+   Another example of how to use this cmdlet
+#>
+function Install-SolutionPackager
+{
+    [CmdletBinding()]
+    [Alias()]
+    Param
+    (
+    )
+
+    Begin
+    {
+    }
+    Process
+    {
+        $sourceNugetExe = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+        $targetNugetExe = ".\nuget.exe"
+        Remove-Item $env:AppData\D365-Tools -Force -Recurse -ErrorAction Ignore
+        Invoke-WebRequest $sourceNugetExe -OutFile $targetNugetExe
+        Set-Alias nuget $targetNugetExe -Scope Global -Verbose
+    
+        ##
+        ##Download CoreTools
+        ##
+        ./nuget install  Microsoft.CrmSdk.CoreTools -O $env:APPDATA\D365-Tools
+        mkdir $env:APPDATA\D365-Tools\CoreTools
+        $coreToolsFolder = Get-ChildItem $env:APPDATA\D365-Tools | Where-Object {$_.Name -match 'Microsoft.CrmSdk.CoreTools.'}
+        Move-Item $env:APPDATA\D365-Tools\$coreToolsFolder\content\bin\coretools\*.* $env:APPDATA\D365-Tools\CoreTools
+        Remove-Item $env:AppData\D365-Tools\$coreToolsFolder -Force -Recurse
+    
+        ##
+        ##Remove NuGet.exe
+        ##
+        Remove-Item nuget.exe
+    }
+    End
+    {
+    }
+}
+
+
 Export-ModuleMember -Function Invoke-SolutionPackager
+Export-ModuleMember -Function Install-SolutionPackager
