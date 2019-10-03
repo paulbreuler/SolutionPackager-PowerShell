@@ -66,6 +66,7 @@ function Invoke-SolutionPackager {
     [String] 
     $packageType = "Unmanaged",
 
+    # This argument is used only during an extraction. When /allowWrite:No is specified, the tool performs all operations but is prevented from writing or deleting any files. The extract operation can be safely assessed without overwriting or deleting any existing files.
     [Parameter(Mandatory = $false, 
       ValueFromPipeline = $true,
       ValueFromPipelineByPropertyName = $true, 
@@ -73,27 +74,144 @@ function Invoke-SolutionPackager {
       ParameterSetName = 'Packager Settings')]
     [ValidateNotNull()]
     [ValidateNotNullOrEmpty()]
-    [ValidateSet("Unmanaged", "Managed", "Both")]
-    [Alias("c")] 
-    $clobber
-  
+    [ValidateSet("Yes", "No")]
+    [String] 
+    $allowWrite = "Yes",
+    
+    # This argument is used only during an extraction. When /allowDelete:Yes is specified, any files present in the folder specified by the /folder parameter that are not expected are automatically deleted. When /allowDelete:No is specified, no deletes will occur. When /allowDelete:Prompt is specified, the user is prompted through the console to allow or deny all delete operations. Note that if /allowWrite:No is specified, no deletes will occur even if /allowDelete:Yes is also specified.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]
+    [ValidateSet("Yes", "No", "Prompt")]
+    [String] 
+    $allowDelete = "Prompt",
+
+    # This argument is used only during an extraction. When /clobber is specified, files that have the read-only attribute set are overwritten or deleted. When not specified, files with the read-only attribute aren’t overwritten or deleted.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]
+    [Alias("c")]
+    [switch] 
+    $clobber,
+    
+    # {Off|Error|Warning|Info|Verbose} The default value is Info. This argument indicates the level of logging information to output.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]
+    [ValidateSet("Off", "Error", "Warning", "Info", "Verbose")]
+    [String] 
+    $errorlevel = "Info",
+
+    # The path and name of an .xml file containing file mapping directives. When used during an extraction, files typically read from inside the folder specified by the /folder parameter are read from alternate locations as specified in the mapping file. During a pack operation, files that match the directives aren’t written.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]
+    [String] 
+    $map,
+
+    # Suppress the banner at runtime.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]
+    [switch] 
+    $nologo,
+
+    # A path and name to a log file. If the file already exists, new logging information is appended to the file.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]  
+    [String] 
+    $log,
+
+    # A path and name to a file that contains command-line arguments for the tool
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]  
+    [String] 
+    $argumentTemplate,
+
+    # Extract or merge all string resources into .resx files. You can use the short form of the command: /loc.
+    [Parameter(Mandatory = $false, 
+      ValueFromPipeline = $true,
+      ValueFromPipelineByPropertyName = $true, 
+      ValueFromRemainingArguments = $false, 
+      ParameterSetName = 'Packager Settings')]
+    [ValidateNotNull()]
+    [ValidateNotNullOrEmpty()]
+    [Alias("loc")]
+    [switch] 
+    $localize
   )
 
   Begin {
   }
   Process {
     if ($pscmdlet.ShouldProcess("Target", "Operation")) {
+                
+      $argumentList = New-Object System.Collections.ArrayList
+      $cmdName = $MyInvocation.InvocationName
+      $paramList = (Get-Command -Name $cmdName).Parameters
+
+      # Compile arguments for solution packager
+      foreach ( $key in $paramList.Keys ) {
+        
+        $value = (Get-Variable $key -ErrorAction SilentlyContinue).Value
+
+        if ( $value -or $value -eq 0 ) { 
+          
+          # Handle input edge cases 
+          switch ($key) {
+            { @("clobber", "nologo", "localize") -contains $_ } {
+              [void]$argumentList.Add("/$($key)"); #Cast to void to silence output
+              break;
+            }
+            default {
+              [void]$argumentList.Add("/$($key): $value"); #Cast to void to silence output
+              break;
+            }
+          }
+          
+        }
+      }
+
+      if (-not (Test-Path $env:APPDATA\D365-Tools\CoreTools\SolutionPackager.exe)) {
+        Install-CoreTools
+      }
 
       $processInfo = New-Object System.Diagnostics.ProcessStartInfo
-      $processInfo.FileName = "C:\Users\$env:UserName\Desktop\Tools\CoreTools\SolutionPackager.exe" # TODO parameterize 
+      $processInfo.FileName = "$env:APPDATA\D365-Tools\CoreTools\SolutionPackager.exe" # TODO parameterize 
       $processInfo.RedirectStandardError = $true
       $processInfo.RedirectStandardOutput = $true
       $processInfo.UseShellExecute = $false
-      $processInfo.Arguments = `
-        "/action: $action", `
-        "/zipfile: $zipFile", `
-        "/folder: $folder", `
-        "/packagetype: $packageType" 
+      $processInfo.Arguments = $argumentList
       $process = New-Object System.Diagnostics.Process
       $process.StartInfo = $processInfo
       $process.Start() | Out-Null
@@ -148,7 +266,7 @@ function Install-CoreTools {
   if ($isAlias.count -lt 1) {
     Write-Verbose "Nuget is not installed."
 
-    $promptReturn = Show-Prompt("Nugget not found.", "Install Nuget?")
+    $promptReturn = Show-Prompt("Nugget is required to install core tools.", "Install Nuget to your AppData directory?")
 
     if ($promptReturn) {
       Install-Nuget
@@ -157,6 +275,7 @@ function Install-CoreTools {
 
   # TODO Allow force install to clean install
   if (-not (Test-Path $env:APPDATA\D365-Tools\CoreTools\SolutionPackager.exe)) {
+    $promptReturn = Show-Prompt("SolutionPackager was not found at $env:APPDATA\D365-Tools\CoreTools\", "Install now?")
     Write-Host "Installing Core Tools from Nuget"
     ##
     ##Download CoreTools
