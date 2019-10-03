@@ -133,44 +133,64 @@ function Invoke-SolutionPackager {
 .EXAMPLE
    Another example of how to use this cmdlet
 #>
-function Install-SolutionPackager
-{
-    [CmdletBinding()]
-    [Alias()]
-    Param
-    (
-    )
+function Install-Nuget {
+  Write-Verbose "Installing Nuget"
+  $sourceNugetExe = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+  $targetNugetExe = "$env:AppData\nuget.exe"
+  Remove-Item $env:AppData\D365-Tools -Force -Recurse -ErrorAction Ignore
+  Invoke-WebRequest $sourceNugetExe -OutFile $targetNugetExe
+  Set-Alias nuget $targetNugetExe -Scope Global -Verbose
+}
 
-    Begin
-    {
+function Install-CoreTools {
+
+  $isAlias = Get-Alias nuget*
+  if ($isAlias.count -lt 1) {
+    Write-Verbose "Nuget is not installed."
+
+    $promptReturn = Show-Prompt("Nugget not found.", "Install Nuget?")
+
+    if ($promptReturn) {
+      Install-Nuget
     }
-    Process
-    {
-        $sourceNugetExe = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
-        $targetNugetExe = ".\nuget.exe"
-        Remove-Item $env:AppData\D365-Tools -Force -Recurse -ErrorAction Ignore
-        Invoke-WebRequest $sourceNugetExe -OutFile $targetNugetExe
-        Set-Alias nuget $targetNugetExe -Scope Global -Verbose
+  }
+
+  # TODO Allow force install to clean install
+  if (-not (Test-Path $env:APPDATA\D365-Tools\CoreTools\SolutionPackager.exe)) {
+    Write-Host "Installing Core Tools from Nuget"
+    ##
+    ##Download CoreTools
+    ##
+    nuget install  Microsoft.CrmSdk.CoreTools -O $env:APPDATA\D365-Tools
+    mkdir $env:APPDATA\D365-Tools\CoreTools
+    $coreToolsFolder = Get-ChildItem $env:APPDATA\D365-Tools | Where-Object { $_.Name -match 'Microsoft.CrmSdk.CoreTools.' }
+    Move-Item $env:APPDATA\D365-Tools\$coreToolsFolder\content\bin\coretools\*.* $env:APPDATA\D365-Tools\CoreTools
+    Remove-Item $env:AppData\D365-Tools\$coreToolsFolder -Force -Recurse
+  }
+  else {
+    Write-Host "Skipping core tools installation. Already exists."
+  }
+}
+
+function Show-Prompt ($title, $message) {
     
-        ##
-        ##Download CoreTools
-        ##
-        ./nuget install  Microsoft.CrmSdk.CoreTools -O $env:APPDATA\D365-Tools
-        mkdir $env:APPDATA\D365-Tools\CoreTools
-        $coreToolsFolder = Get-ChildItem $env:APPDATA\D365-Tools | Where-Object {$_.Name -match 'Microsoft.CrmSdk.CoreTools.'}
-        Move-Item $env:APPDATA\D365-Tools\$coreToolsFolder\content\bin\coretools\*.* $env:APPDATA\D365-Tools\CoreTools
-        Remove-Item $env:AppData\D365-Tools\$coreToolsFolder -Force -Recurse
-    
-        ##
-        ##Remove NuGet.exe
-        ##
-        Remove-Item nuget.exe
-    }
-    End
-    {
-    }
+  $_title = $title
+  $_message = $message
+
+  $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Yes", "This means Yes"
+  $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "This means No"
+
+  $options = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+
+  $result = $host.ui.PromptForChoice($_title, $_message, $Options, 0)
+
+  Switch ($result) {
+    0 { return $true }
+    1 { return $false }
+  }
 }
 
 
 Export-ModuleMember -Function Invoke-SolutionPackager
-Export-ModuleMember -Function Install-SolutionPackager
+Export-ModuleMember -Function Install-Nuget
+Export-ModuleMember -Function Install-CoreTools
