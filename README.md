@@ -3,7 +3,7 @@ This project is a PowerShell wrapper for the SolutionPackager utility to make wo
 
 ## Usage
 
-Change PowerShell direcotry to repository directory containing the module and import the module. Alternately pass the path to the import command.
+Change PowerShell directory to repository directory containing the module and import the module. Alternately pass the path to the import command.
 
 ```powershell
 Import-Module .\SolutionPackagerWrapper.psm1
@@ -17,10 +17,21 @@ Review the help page of the new command
 Get-Help Invoke-SolutionPackager -Full
 ```
 
-Run the command
+
+### Extract 
+
+The solution zip file is decomposed into a logic folder and file structure that is emitted into the directory you specify in the folder argument.
 
 ```powershell
 Invoke-SolutionPackager -action Extract -zipFile "C:\Users\$env:Username\Downloads\WebResources_0_0_1_3.zip" -folder C:\Users\$env:Username\Documents\Repositories\contoso-university\unpacked-solutions\WebResources 
 ```
 
-Note: If extracting (unpacking) a solution component folders and files are unpacked into the specified folder.
+```powershell
+Invoke-SolutionPackager -action Extract -zipFile "C:\Users\$env:Username\Downloads\WebResources_0_0_1_3.zip" -folder C:\Users\$env:Username\Documents\Repositories\contoso-university\unpacked-solutions\WebResources -clobber -nologo
+```
+
+### Pack
+
+```powershell
+Invoke-SolutionPackager -action pack -zipFile "C:\Users\$env:Username\Desktop\WebResources_packed.zip" -folder C:\Users\$env:Username\Documents\Repositories\contoso-university\unpacked-solutions\WebResources -nologo
+```
